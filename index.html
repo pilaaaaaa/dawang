@@ -707,7 +707,9 @@ function initCanvas(){
   cv.addEventListener('touchend',()=>{if(drag.on&&drag.moved) snapshot();drag.on=0;pan.on=0;touch.pinch=0;});
   cv.addEventListener('click',e=>{
     if(e.target.closest('.ep')) return;
-    if(e.target.closest('.port')) return; // port clicks handled separately
+    if(e.target.closest('.port')) return;
+    // Suppress ghost click fired ~300ms after touchend
+    if(Date.now()-_lastTouch<350) return;
     if(S.connSrc){cancelConn();return;}
     if(!e.target.closest('.node')&&!e.target.closest('.dp')){S.selNode=null;closeDP();renderNodes();}
   });
@@ -766,26 +768,26 @@ function makeNode(node,dimmed,dn){
   ta.addEventListener('click',e=>{e.stopPropagation();if(!S.connSrc){S.selNode=node.id;openDP(node);renderNodes();}});
   const po=el.querySelector('.po');
   const pi=el.querySelector('.pi');
-  // Unified connect logic for both desktop and mobile
-  // Output port: mousedown (desktop drag) + click (mobile tap)
-  po.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();startConn(node.id);});
-  po.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();});
-  // Input port: click to finish (works on both)
-  pi.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();});
-  pi.addEventListener('click',e=>{
-    e.stopPropagation();e.preventDefault();
-    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
-  });
-  // Touch-specific: touchend on output starts conn, touchend on input finishes
+  let _touchUsed=false;
   po.addEventListener('touchend',e=>{
     e.stopPropagation();e.preventDefault();
+    _touchUsed=true;
     if(S.connSrc===node.id) cancelConn();
     else startConn(node.id);
   },{passive:false});
   pi.addEventListener('touchend',e=>{
     e.stopPropagation();e.preventDefault();
+    _touchUsed=true;
     if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
   },{passive:false});
+  po.addEventListener('mousedown',e=>{if(e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return;e.stopPropagation();e.preventDefault();startConn(node.id);});
+  po.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();});
+  pi.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();});
+  pi.addEventListener('click',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(_touchUsed){_touchUsed=false;return;}
+    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
+  });
   el.querySelector('.nb').addEventListener('click',e=>{if(e.target.closest('.nt')) return;e.stopPropagation();if(S.connSrc) return;S.selNode=node.id;openDP(node);renderNodes();});
   return el;
 }
