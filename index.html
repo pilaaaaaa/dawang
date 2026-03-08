@@ -126,13 +126,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
   .pi{left:-11px;}.po{right:-11px;}
   .port.pa{transform:translateY(-50%) scale(1.2);}
 }
-/* ── CONNECT MODE (mobile) ── */
-.conn-fab{display:none;position:absolute;bottom:80px;left:12px;z-index:25;padding:8px 14px;border-radius:20px;border:none;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;box-shadow:var(--sh-m);transition:all .15s;}
-.conn-fab.idle{background:var(--surface);border:1px solid var(--border);color:var(--tm);}
-.conn-fab.active{background:var(--green);color:#fff;}
-@media(max-width:680px){.conn-fab{display:flex;align-items:center;gap:6px;}
-  .port{display:none!important;} /* hide ports on mobile, use tap-node instead */
-}
+/* Connection mode: highlight all input ports, dim nodes */
+#cv.cm .node{opacity:.7;}
+#cv.cm .node .pi{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.5);box-shadow:0 0 0 4px var(--gl);}
+#cv.cm .node .po{opacity:.3;}
+/* Source node stays full opacity, its output port pulses */
+#cv.cm .node[data-id].conn-active{opacity:1;}
+#cv.cm .node[data-id].conn-active .po{opacity:1;}
 .ep{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-m);padding:6px;z-index:200;display:none;flex-direction:column;min-width:140px;}
 .ep.show{display:flex;}
 .ep-btn{padding:7px 12px;border-radius:6px;border:none;background:transparent;color:var(--tm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;text-align:left;transition:all .1s;display:flex;align-items:center;gap:8px;}
@@ -309,7 +309,6 @@ select.fi{cursor:pointer;}
       <button class="zb" onclick="zoomBy(0.8)">－</button>
       <button class="zb" onclick="resetView()" style="font-size:10px">⊙</button>
     </div>
-    <button class="conn-fab idle" id="conn-fab" onclick="toggleConnMode()">⇢ Connect</button>
     <div class="tl expanded" id="tl">
       <div class="tl-hdr">
         <span class="tl-hdr-lbl">Timeline</span>
@@ -567,7 +566,7 @@ const S={
   xf:{x:50,y:50,scale:1},
   selDate:null,
   nextId:1,scNext:20,
-  connSrc:null,gpos:null,mobileConnMode:false,
+  connSrc:null,gpos:null,
   tlCollapsed:false,calOpen:false,
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),
   sbHidden:false,
@@ -762,7 +761,7 @@ function makeNode(node,dimmed,dn){
   const locked=!isUnlocked(node)&&!isDone(node)&&!blk&&!isCan;
   const dateDim=S.selDate&&!nodeMatchesDate(node,S.selDate),dateHl=S.selDate&&nodeMatchesDate(node,S.selDate);
   let cls='node';
-  if(S.connSrc===node.id) el.classList.add('conn-src-node');
+  if(S.connSrc===node.id) el.classList.add('conn-active');
   if(S.selDate){if(dateDim) cls+=' nd';else if(dateHl) cls+=' nh';}
   else{if(isDim||isCan) cls+=' ncl';else if(locked) cls+=' nl';}
   const el=document.createElement('div');el.className=cls;el.style.left=dn.x+'px';el.style.top=dn.y+'px';el.dataset.id=node.id;
