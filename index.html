@@ -705,7 +705,12 @@ function initCanvas(){
     else if(e.touches.length===1){if(drag.on&&drag.node){const dx=(e.touches[0].clientX-drag.sx)/S.xf.scale,dy=(e.touches[0].clientY-drag.sy)/S.xf.scale;if(Math.abs(dx)>2||Math.abs(dy)>2) drag.moved=true;drag.node.x=drag.nx+dx;drag.node.y=drag.ny+dy;const el=document.querySelector(`.node[data-id="${drag.node.id}"]`);if(el){el.style.left=drag.node.x+'px';el.style.top=drag.node.y+'px';}renderEdges();}else if(pan.on){S.xf.x=pan.tx+(e.touches[0].clientX-pan.sx);S.xf.y=pan.ty+(e.touches[0].clientY-pan.sy);applyXF();}}
   },{passive:false});
   cv.addEventListener('touchend',()=>{if(drag.on&&drag.moved) snapshot();drag.on=0;pan.on=0;touch.pinch=0;});
-  cv.addEventListener('click',e=>{if(e.target.closest('.ep')) return;if(S.connSrc&&!e.target.closest('.port')){cancelConn();return;}if(!e.target.closest('.node')&&!e.target.closest('.dp')){S.selNode=null;closeDP();renderNodes();}});
+  cv.addEventListener('click',e=>{
+    if(e.target.closest('.ep')) return;
+    if(e.target.closest('.port')) return; // port clicks handled separately
+    if(S.connSrc){cancelConn();return;}
+    if(!e.target.closest('.node')&&!e.target.closest('.dp')){S.selNode=null;closeDP();renderNodes();}
+  });
   window.addEventListener('keydown',e=>{
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();doUndo();return;}
     if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();doRedo();return;}
@@ -759,19 +764,28 @@ function makeNode(node,dimmed,dn){
   ta.addEventListener('mousedown',e=>e.stopPropagation());
   ta.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
   ta.addEventListener('click',e=>{e.stopPropagation();if(!S.connSrc){S.selNode=node.id;openDP(node);renderNodes();}});
-  el.querySelector('.po').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();startConn(node.id);});
-  el.querySelector('.pi').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc) finishConn(node.id);});
-  // Mobile two-tap: tap output → activates; tap any input → connects; tap output again → cancels
-  el.querySelector('.po').addEventListener('click',e=>{
-    e.stopPropagation();e.preventDefault();
-    if(S.connSrc===node.id){cancelConn();}
-    else if(S.connSrc){cancelConn();}
-    else{startConn(node.id);}
-  });
-  el.querySelector('.pi').addEventListener('click',e=>{
+  const po=el.querySelector('.po');
+  const pi=el.querySelector('.pi');
+  // Unified connect logic for both desktop and mobile
+  // Output port: mousedown (desktop drag) + click (mobile tap)
+  po.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();startConn(node.id);});
+  po.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();});
+  // Input port: click to finish (works on both)
+  pi.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();});
+  pi.addEventListener('click',e=>{
     e.stopPropagation();e.preventDefault();
     if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
   });
+  // Touch-specific: touchend on output starts conn, touchend on input finishes
+  po.addEventListener('touchend',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(S.connSrc===node.id) cancelConn();
+    else startConn(node.id);
+  },{passive:false});
+  pi.addEventListener('touchend',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
+  },{passive:false});
   el.querySelector('.nb').addEventListener('click',e=>{if(e.target.closest('.nt')) return;e.stopPropagation();if(S.connSrc) return;S.selNode=node.id;openDP(node);renderNodes();});
   return el;
 }
