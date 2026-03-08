@@ -117,9 +117,18 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .nm{display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;}
 .nm-d{font-size:10px;color:var(--td);background:var(--s2);padding:1px 5px;border-radius:4px;}
 .nm-t{font-size:10px;padding:1px 5px;border-radius:4px;}
-.port{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--surface);border:2px solid var(--bm);top:50%;transform:translateY(-50%);z-index:5;cursor:crosshair;transition:all .12s;}
-.pi{left:-6px;}.po{right:-6px;}
-.port:hover,.port.pa{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.35);}
+.port{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--surface);border:2px solid var(--bm);top:50%;transform:translateY(-50%);z-index:5;cursor:pointer;transition:all .15s;}
+.pi{left:-7px;}.po{right:-7px;}
+.port:hover,.port.pa{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.4);}
+/* Mobile: larger tap targets */
+@media(max-width:680px){
+  .port{width:22px;height:22px;border-width:3px;}
+  .pi{left:-11px;}.po{right:-11px;}
+  .port.pa{transform:translateY(-50%) scale(1.2);}
+}
+/* Pending connection: pulsing green ring on active source port */
+.port.conn-src{background:var(--green);border-color:var(--green);box-shadow:0 0 0 4px var(--gl);animation:conn-pulse .9s infinite;}
+@keyframes conn-pulse{0%,100%{box-shadow:0 0 0 4px var(--gl);}50%{box-shadow:0 0 0 8px rgba(46,125,94,.12);}}
 .ep{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-m);padding:6px;z-index:200;display:none;flex-direction:column;min-width:140px;}
 .ep.show{display:flex;}
 .ep-btn{padding:7px 12px;border-radius:6px;border:none;background:transparent;color:var(--tm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;text-align:left;transition:all .1s;display:flex;align-items:center;gap:8px;}
@@ -276,9 +285,9 @@ select.fi{cursor:pointer;}
     <div class="sb-footer">
       <div class="sb-wm">Galatea · bkuo4862aire@gmail.com</div>
       <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;">
-        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="openSetup()">重新配置 Supabase</span>
-        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="exportJSON()">导出 JSON</span>
-        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="document.getElementById('import-file').click()">导入 JSON</span>
+        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="openSetup()">Supabase Settings</span>
+        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="exportJSON()">Export JSON</span>
+        <span style="font-size:10px;color:var(--td);cursor:pointer;text-decoration:underline" onclick="document.getElementById('import-file').click()">Import JSON</span>
         <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
       </div>
     </div>
@@ -286,7 +295,7 @@ select.fi{cursor:pointer;}
   <div class="cw">
     <div id="cv">
       <div id="ci"><svg id="svgl"></svg></div>
-      <div class="ch" id="ch">Drag to target port · ESC cancel</div>
+      <div class="ch" id="ch">Desktop: drag to target port · Mobile: tap ➜ port · ESC cancel</div>
       <div class="ep" id="ep">
         <button class="ep-btn ep-del" onclick="epDelete()">✕ Delete connection</button>
       </div>
@@ -750,10 +759,11 @@ function makeNode(node,dimmed,dn){
   ta.addEventListener('mousedown',e=>e.stopPropagation());
   ta.addEventListener('touchstart',e=>e.stopPropagation(),{passive:true});
   ta.addEventListener('click',e=>{e.stopPropagation();if(!S.connSrc){S.selNode=node.id;openDP(node);renderNodes();}});
-  el.querySelector('.po').addEventListener('mousedown',e=>{e.stopPropagation();startConn(node.id);});
-  el.querySelector('.pi').addEventListener('mousedown',e=>{e.stopPropagation();if(S.connSrc) finishConn(node.id);});
-  el.querySelector('.po').addEventListener('touchstart',e=>{e.stopPropagation();startConn(node.id);},{passive:true});
-  el.querySelector('.pi').addEventListener('touchstart',e=>{e.stopPropagation();if(S.connSrc) finishConn(node.id);},{passive:true});
+  el.querySelector('.po').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();startConn(node.id);});
+  el.querySelector('.pi').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc) finishConn(node.id);});
+  // Touch: tap output port to start, tap input port to finish
+  el.querySelector('.po').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc===node.id){cancelConn();}else{startConn(node.id);}},{passive:false});
+  el.querySelector('.pi').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);},{passive:false});
   el.querySelector('.nb').addEventListener('click',e=>{if(e.target.closest('.nt')) return;e.stopPropagation();if(S.connSrc) return;S.selNode=node.id;openDP(node);renderNodes();});
   return el;
 }
