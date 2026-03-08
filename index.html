@@ -269,7 +269,7 @@ select.fi{cursor:pointer;}
   <div id="sync-dot" title="Sync status"></div>
   <button class="btn icon-btn" id="undo-btn" onclick="doUndo()" title="Undo (Ctrl+Z)" disabled>&#8592;</button>
   <button class="btn icon-btn" id="redo-btn" onclick="doRedo()" title="Redo (Ctrl+Y)" disabled>&#8594;</button>
-  <span class="tb-date" id="tb-date" onclick="scrollToToday(true)"></span>
+  <span class="tb-date hide-m" id="tb-date" onclick="scrollToToday(true)"></span>
 </div>
 <div class="layout">
   <div class="sb-overlay" id="sb-ov" onclick="toggleSb()"></div>
@@ -735,7 +735,23 @@ function initCanvas(){
 
 function applyXF(){document.getElementById('ci').style.transform=`translate(${S.xf.x}px,${S.xf.y}px) scale(${S.xf.scale})`;}
 function zoomBy(f){const cv=document.getElementById('cv'),mx=cv.clientWidth/2,my=cv.clientHeight/2;S.xf.x=mx-(mx-S.xf.x)*f;S.xf.y=my-(my-S.xf.y)*f;S.xf.scale=Math.max(.2,Math.min(3,S.xf.scale*f));applyXF();}
-function resetView(){S.xf={x:50,y:50,scale:1};applyXF();}
+function resetView(){
+  const cv=document.getElementById('cv');
+  const vw=cv.clientWidth,vh=cv.clientHeight;
+  const vNodes=visNodes();
+  if(!vNodes.length){S.xf={x:50,y:50,scale:1};applyXF();return;}
+  // compute bounding box in canvas coords (apply scene y-offset)
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  vNodes.forEach(n=>{
+    const yOff=S.filters.scene==='all'?sceneYOffset(n.scene):0;
+    minX=Math.min(minX,n.x);minY=Math.min(minY,n.y+yOff);
+    maxX=Math.max(maxX,n.x+NW);maxY=Math.max(maxY,n.y+yOff+80);
+  });
+  const pad=40,cw=maxX-minX+pad*2,ch=maxY-minY+pad*2;
+  const scale=Math.max(0.2,Math.min(1.5,Math.min(vw/cw,vh/ch)));
+  S.xf={x:(vw-cw*scale)/2-minX*scale+pad*scale,y:(vh-ch*scale)/2-minY*scale+pad*scale,scale};
+  applyXF();
+}
 
 function handlePort(el,e){if(e.stopPropagation) e.stopPropagation();const t=el.dataset.port,id=+el.dataset.node;if(t==='out') startConn(id);else if(t==='in'&&S.connSrc) finishConn(id);}
 function startConn(id){S.connSrc=id;S.gpos=null;document.getElementById('cv').classList.add('cm');document.getElementById('ch').classList.add('show');}
