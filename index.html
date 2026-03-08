@@ -62,8 +62,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .btn.icon-btn{padding:5px 8px;font-size:14px;min-width:30px;}
 .btn.icon-btn:disabled{opacity:.32;cursor:default;}
 .sp{flex:1;}
-.tb-date{font-size:11px;color:var(--td);white-space:nowrap;cursor:pointer;padding:4px 7px;border-radius:5px;transition:background .1s;}
+.tb-date{font-size:11px;color:var(--td);white-space:nowrap;cursor:pointer;padding:4px 7px;border-radius:5px;transition:background .1s;max-width:90px;overflow:hidden;text-overflow:ellipsis;}
 .tb-date:hover{background:var(--s2);color:var(--green);}
+@media(max-width:680px){.tb-date{max-width:72px;font-size:10px;}}
 .menu-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--tm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
 .layout{display:flex;flex:1;overflow:hidden;position:relative;}
 .sidebar{width:var(--sb);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;transition:transform .22s ease,width .22s ease;z-index:30;}
@@ -200,6 +201,7 @@ select.fi{cursor:pointer;}
 .dp-dl{padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--td);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;}
 .dp-dl:hover{border-color:var(--red);color:var(--red);background:var(--rl);}
 .zc{position:absolute;bottom:70px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+@media(max-width:680px){.zc{bottom:auto;top:calc(var(--th) + 8px);right:8px;}}
 .zb{width:28px;height:28px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--tm);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-s);}
 .zb:hover{background:var(--s2);}
 .ch{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:5px 14px;border-radius:20px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:50;white-space:nowrap;}
@@ -267,8 +269,8 @@ select.fi{cursor:pointer;}
   <button class="btn hide-m" onclick="openStMo()">Status</button>
   <div class="sp"></div>
   <div id="sync-dot" title="Sync status"></div>
-  <button class="btn icon-btn" id="undo-btn" onclick="doUndo()" title="Undo (Ctrl+Z)" disabled>↩</button>
-  <button class="btn icon-btn" id="redo-btn" onclick="doRedo()" title="Redo (Ctrl+Y)" disabled>↪</button>
+  <button class="btn icon-btn" id="undo-btn" onclick="doUndo()" title="Undo (Ctrl+Z)" disabled style="font-size:12px;font-family:sans-serif">&#8592;&#9135;</button>
+  <button class="btn icon-btn" id="redo-btn" onclick="doRedo()" title="Redo (Ctrl+Y)" disabled style="font-size:12px;font-family:sans-serif">&#9135;&#8594;</button>
   <span class="tb-date" id="tb-date" onclick="scrollToToday(true)"></span>
 </div>
 <div class="layout">
