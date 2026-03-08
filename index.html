@@ -62,7 +62,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .btn.icon-btn{padding:5px 8px;font-size:14px;min-width:30px;}
 .btn.icon-btn:disabled{opacity:.32;cursor:default;}
 .sp{flex:1;}
-.tb-date{font-size:11px;color:var(--td);white-space:nowrap;cursor:pointer;padding:4px 7px;border-radius:5px;transition:background .1s;}
+.tb-date{font-size:11px;color:var(--td);white-space:nowrap;cursor:pointer;padding:4px 7px;border-radius:5px;transition:background .1s;overflow:hidden;text-overflow:ellipsis;max-width:90px;}
+@media(max-width:680px){.tb-date{max-width:72px;font-size:10px;}}
 .tb-date:hover{background:var(--s2);color:var(--green);}
 .menu-btn{width:34px;height:34px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--tm);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
 .layout{display:flex;flex:1;overflow:hidden;position:relative;}
@@ -126,13 +127,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
   .pi{left:-11px;}.po{right:-11px;}
   .port.pa{transform:translateY(-50%) scale(1.2);}
 }
-/* Connection mode: highlight all input ports, dim nodes */
-#cv.cm .node{opacity:.7;}
-#cv.cm .node .pi{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.5);box-shadow:0 0 0 4px var(--gl);}
-#cv.cm .node .po{opacity:.3;}
-/* Source node stays full opacity, its output port pulses */
-#cv.cm .node[data-id].conn-active{opacity:1;}
-#cv.cm .node[data-id].conn-active .po{opacity:1;}
+/* ── CONNECT MODE (mobile) ── */
+.conn-fab{display:none;position:absolute;bottom:80px;left:12px;z-index:25;padding:8px 14px;border-radius:20px;border:none;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;cursor:pointer;box-shadow:var(--sh-m);transition:all .15s;}
+.conn-fab.idle{background:var(--surface);border:1px solid var(--border);color:var(--tm);}
+.conn-fab.active{background:var(--green);color:#fff;}
+@media(max-width:680px){.conn-fab{display:flex;align-items:center;gap:6px;}
+  .port{display:none!important;} /* hide ports on mobile, use tap-node instead */
+}
 .ep{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-m);padding:6px;z-index:200;display:none;flex-direction:column;min-width:140px;}
 .ep.show{display:flex;}
 .ep-btn{padding:7px 12px;border-radius:6px;border:none;background:transparent;color:var(--tm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;text-align:left;transition:all .1s;display:flex;align-items:center;gap:8px;}
@@ -199,7 +200,8 @@ select.fi{cursor:pointer;}
 .dp-sv:hover{opacity:.88;}
 .dp-dl{padding:7px 10px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--td);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;}
 .dp-dl:hover{border-color:var(--red);color:var(--red);background:var(--rl);}
-.zc{position:absolute;bottom:70px;right:12px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+.zc{position:absolute;top:calc(var(--th) + 8px);right:8px;display:flex;flex-direction:column;gap:4px;z-index:20;}
+@media(max-width:680px){.zc{top:calc(var(--th) + 8px);right:6px;}}
 .zb{width:28px;height:28px;border-radius:6px;background:var(--surface);border:1px solid var(--border);color:var(--tm);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--sh-s);}
 .zb:hover{background:var(--s2);}
 .ch{position:absolute;bottom:70px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;padding:5px 14px;border-radius:20px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .2s;z-index:50;white-space:nowrap;}
@@ -267,8 +269,8 @@ select.fi{cursor:pointer;}
   <button class="btn hide-m" onclick="openStMo()">Status</button>
   <div class="sp"></div>
   <div id="sync-dot" title="Sync status"></div>
-  <button class="btn icon-btn" id="undo-btn" onclick="doUndo()" title="Undo (Ctrl+Z)" disabled>↩</button>
-  <button class="btn icon-btn" id="redo-btn" onclick="doRedo()" title="Redo (Ctrl+Y)" disabled>↪</button>
+  <button class="btn icon-btn" id="undo-btn" onclick="doUndo()" title="Undo (Ctrl+Z)" disabled>&#8634;</button>
+  <button class="btn icon-btn" id="redo-btn" onclick="doRedo()" title="Redo (Ctrl+Y)" disabled>&#8635;</button>
   <span class="tb-date" id="tb-date" onclick="scrollToToday(true)"></span>
 </div>
 <div class="layout">
@@ -309,6 +311,7 @@ select.fi{cursor:pointer;}
       <button class="zb" onclick="zoomBy(0.8)">－</button>
       <button class="zb" onclick="resetView()" style="font-size:10px">⊙</button>
     </div>
+    <button class="conn-fab idle" id="conn-fab" onclick="toggleConnMode()">⇢ Connect</button>
     <div class="tl expanded" id="tl">
       <div class="tl-hdr">
         <span class="tl-hdr-lbl">Timeline</span>
@@ -566,7 +569,7 @@ const S={
   xf:{x:50,y:50,scale:1},
   selDate:null,
   nextId:1,scNext:20,
-  connSrc:null,gpos:null,
+  connSrc:null,gpos:null,mobileConnMode:false,
   tlCollapsed:false,calOpen:false,
   calYear:new Date().getFullYear(),calMonth:new Date().getMonth(),
   sbHidden:false,
@@ -761,7 +764,7 @@ function makeNode(node,dimmed,dn){
   const locked=!isUnlocked(node)&&!isDone(node)&&!blk&&!isCan;
   const dateDim=S.selDate&&!nodeMatchesDate(node,S.selDate),dateHl=S.selDate&&nodeMatchesDate(node,S.selDate);
   let cls='node';
-  if(S.connSrc===node.id) el.classList.add('conn-active');
+  if(S.connSrc===node.id) el.classList.add('conn-src-node');
   if(S.selDate){if(dateDim) cls+=' nd';else if(dateHl) cls+=' nh';}
   else{if(isDim||isCan) cls+=' ncl';else if(locked) cls+=' nl';}
   const el=document.createElement('div');el.className=cls;el.style.left=dn.x+'px';el.style.top=dn.y+'px';el.dataset.id=node.id;
