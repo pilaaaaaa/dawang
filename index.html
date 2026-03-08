@@ -126,9 +126,13 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
   .pi{left:-11px;}.po{right:-11px;}
   .port.pa{transform:translateY(-50%) scale(1.2);}
 }
-/* Pending connection: pulsing green ring on active source port */
-.port.conn-src{background:var(--green);border-color:var(--green);box-shadow:0 0 0 4px var(--gl);animation:conn-pulse .9s infinite;}
-@keyframes conn-pulse{0%,100%{box-shadow:0 0 0 4px var(--gl);}50%{box-shadow:0 0 0 8px rgba(46,125,94,.12);}}
+/* Connection mode: highlight all input ports, dim nodes */
+#cv.cm .node{opacity:.7;}
+#cv.cm .node .pi{background:var(--green);border-color:var(--green);transform:translateY(-50%) scale(1.5);box-shadow:0 0 0 4px var(--gl);}
+#cv.cm .node .po{opacity:.3;}
+/* Source node stays full opacity, its output port pulses */
+#cv.cm .node[data-id].conn-active{opacity:1;}
+#cv.cm .node[data-id].conn-active .po{opacity:1;}
 .ep{position:fixed;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-m);padding:6px;z-index:200;display:none;flex-direction:column;min-width:140px;}
 .ep.show{display:flex;}
 .ep-btn{padding:7px 12px;border-radius:6px;border:none;background:transparent;color:var(--tm);font-size:12px;font-family:'DM Sans',sans-serif;cursor:pointer;text-align:left;transition:all .1s;display:flex;align-items:center;gap:8px;}
@@ -751,7 +755,7 @@ function makeNode(node,dimmed,dn){
   const locked=!isUnlocked(node)&&!isDone(node)&&!blk&&!isCan;
   const dateDim=S.selDate&&!nodeMatchesDate(node,S.selDate),dateHl=S.selDate&&nodeMatchesDate(node,S.selDate);
   let cls='node';
-  if(node.id===S.selNode) cls+=' ns';else if(blk) cls+=' nblk';
+  if(S.connSrc===node.id) el.classList.add('conn-active');
   if(S.selDate){if(dateDim) cls+=' nd';else if(dateHl) cls+=' nh';}
   else{if(isDim||isCan) cls+=' ncl';else if(locked) cls+=' nl';}
   const el=document.createElement('div');el.className=cls;el.style.left=dn.x+'px';el.style.top=dn.y+'px';el.dataset.id=node.id;
@@ -768,26 +772,34 @@ function makeNode(node,dimmed,dn){
   ta.addEventListener('click',e=>{e.stopPropagation();if(!S.connSrc){S.selNode=node.id;openDP(node);renderNodes();}});
   const po=el.querySelector('.po');
   const pi=el.querySelector('.pi');
-  let _touchUsed=false;
+
+  // ── OUTPUT PORT ──
+  // Desktop: mousedown starts drag-to-connect
+  po.addEventListener('mousedown',e=>{
+    if(e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return;
+    e.stopPropagation();e.preventDefault();
+    startConn(node.id);
+  });
+  // Mobile: touchend on output starts conn (or cancels if already this node)
   po.addEventListener('touchend',e=>{
     e.stopPropagation();e.preventDefault();
-    _touchUsed=true;
     if(S.connSrc===node.id) cancelConn();
     else startConn(node.id);
   },{passive:false});
-  pi.addEventListener('touchend',e=>{
-    e.stopPropagation();e.preventDefault();
-    _touchUsed=true;
-    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
-  },{passive:false});
-  po.addEventListener('mousedown',e=>{if(e.sourceCapabilities&&e.sourceCapabilities.firesTouchEvents) return;e.stopPropagation();e.preventDefault();startConn(node.id);});
   po.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();});
-  pi.addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();});
-  pi.addEventListener('click',e=>{
+
+  // ── INPUT PORT ──
+  // Desktop mouseup (end of drag)
+  pi.addEventListener('mouseup',e=>{
     e.stopPropagation();e.preventDefault();
-    if(_touchUsed){_touchUsed=false;return;}
     if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
   });
+  // Mobile: touchend on input finishes conn
+  pi.addEventListener('touchend',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
+  },{passive:false});
+  pi.addEventListener('click',e=>{e.stopPropagation();e.preventDefault();});
   el.querySelector('.nb').addEventListener('click',e=>{if(e.target.closest('.nt')) return;e.stopPropagation();if(S.connSrc) return;S.selNode=node.id;openDP(node);renderNodes();});
   return el;
 }
