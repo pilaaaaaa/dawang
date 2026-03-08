@@ -761,9 +761,17 @@ function makeNode(node,dimmed,dn){
   ta.addEventListener('click',e=>{e.stopPropagation();if(!S.connSrc){S.selNode=node.id;openDP(node);renderNodes();}});
   el.querySelector('.po').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();startConn(node.id);});
   el.querySelector('.pi').addEventListener('mousedown',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc) finishConn(node.id);});
-  // Touch: tap output port to start, tap input port to finish
-  el.querySelector('.po').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc===node.id){cancelConn();}else{startConn(node.id);}},{passive:false});
-  el.querySelector('.pi').addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);},{passive:false});
+  // Mobile two-tap: tap output → activates; tap any input → connects; tap output again → cancels
+  el.querySelector('.po').addEventListener('click',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(S.connSrc===node.id){cancelConn();}
+    else if(S.connSrc){cancelConn();}
+    else{startConn(node.id);}
+  });
+  el.querySelector('.pi').addEventListener('click',e=>{
+    e.stopPropagation();e.preventDefault();
+    if(S.connSrc&&S.connSrc!==node.id) finishConn(node.id);
+  });
   el.querySelector('.nb').addEventListener('click',e=>{if(e.target.closest('.nt')) return;e.stopPropagation();if(S.connSrc) return;S.selNode=node.id;openDP(node);renderNodes();});
   return el;
 }
