@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- © Galatea 2025 – bkuo4862aire@gmail.com -->
-<!-- v4 – Cascade demo + Gantt drag + batch ops + PNG export -->
+<!-- v4.1 – Bug fixes: edge batch OR (Ctrl+click) + eliminated node drift -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -110,6 +110,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .eg{fill:none;stroke:var(--green);stroke-width:1.5;stroke-dasharray:5 4;pointer-events:none;opacity:.7;}
 .eor{fill:none;stroke:#d97757;stroke-width:2;stroke-dasharray:4 3;}
 .eor-done{fill:none;stroke:#d97757;stroke-width:2.5;}
+/* ★ NEW: edge multi-select highlight */
+.e-multisel{stroke:var(--green)!important;stroke-width:3!important;stroke-dasharray:none!important;filter:drop-shadow(0 0 3px rgba(46,125,94,.4));}
 
 /* ── NODES ── */
 .node{position:absolute;width:220px;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-s);user-select:none;will-change:transform;transition:opacity .2s,filter .2s;}
@@ -125,30 +127,31 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .node.n-locked{box-shadow:inset 3.5px 0 0 var(--blue),var(--sh-s);background:var(--surface);}
 .node.n-locked:hover{box-shadow:inset 3.5px 0 0 var(--blue),var(--sh-m);}
 .node.n-locked .ns-stripe{background:var(--blue)!important;}
+/* ★ BUG 2 FIX: 1px border (consistent with base .node), no overflow:hidden (clips ports).
+   ::after constrained to left:0 width:100% so strikethrough stays within node bounds. */
 .node.n-eliminated{
-  border:1.5px dashed var(--red);background:var(--surface);
-  position:relative;overflow:hidden;
+  border:1px dashed var(--red);background:var(--surface);
+  position:relative;
 }
 .node.n-eliminated .ns-stripe{background:var(--red)!important;}
 .node.n-eliminated::after{
-  content:'';position:absolute;top:50%;left:-10%;
-  width:120%;height:1.5px;background:var(--red);
-  transform:rotate(-12deg);pointer-events:none;opacity:.55;
+  content:'';position:absolute;top:50%;left:0;
+  width:100%;height:1.5px;background:var(--red);
+  transform:rotate(-8deg);pointer-events:none;opacity:.55;
 }
 .node.n-eliminated .nt{color:var(--td);}
 .node.n-cascade-elim{
-  border:1.5px dashed var(--bm);background:var(--surface);
-  position:relative;overflow:hidden;
+  border:1px dashed var(--bm);background:var(--surface);
+  position:relative;
 }
 .node.n-cascade-elim .ns-stripe{background:var(--bm)!important;}
 .node.n-cascade-elim::after{
-  content:'';position:absolute;top:50%;left:-10%;
-  width:120%;height:1.5px;background:var(--bm);
-  transform:rotate(-12deg);pointer-events:none;opacity:.5;
+  content:'';position:absolute;top:50%;left:0;
+  width:100%;height:1.5px;background:var(--bm);
+  transform:rotate(-8deg);pointer-events:none;opacity:.5;
 }
 .node.n-cascade-elim .nt{color:var(--bm);}
 .node.date-dim{opacity:.3;}
-.node.nh{border-color:var(--orange);box-shadow:0 0 0 2px var(--ol),var(--sh-m);}
 .node.parent-node{width:240px;border-width:2px;}
 .node.parent-node .ns-stripe{height:4px;}
 .node.parent-collapsed .child-indicator{display:flex;}
@@ -197,6 +200,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .ep-btn.ep-del:hover{background:var(--rl);}
 .ep-btn.active{background:var(--gl);color:var(--green);}
 .ep-sep{height:1px;background:var(--border);margin:4px 0;}
+/* ★ NEW: edge selection count badge in popup */
+.ep-sel-badge{font-size:10px;color:var(--green);background:var(--gl);padding:2px 8px;border-radius:8px;margin-bottom:4px;text-align:center;}
 
 /* ── TIMELINE ── */
 .tl{background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:height .2s ease;}
@@ -254,7 +259,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .gantt-bar:hover{opacity:.8;box-shadow:var(--sh-s);}
 .gantt-bar:active{cursor:grabbing;}
 .gantt-bar-label{font-size:9px;color:#fff;padding:0 4px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;}
-/* Gantt resize handles */
 .gantt-handle{position:absolute;top:0;width:8px;height:100%;cursor:col-resize;z-index:2;}
 .gantt-handle-l{left:-2px;border-radius:4px 0 0 4px;}
 .gantt-handle-r{right:-2px;border-radius:0 4px 4px 0;}
@@ -264,14 +268,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .gantt-day-cell{width:32px;min-width:32px;text-align:center;font-size:9px;color:var(--td);line-height:24px;border-right:1px solid var(--s2);}
 .gantt-day-cell.today{color:var(--green);font-weight:700;background:var(--gl);}
 .gantt-day-cell.weekend{background:#faf9f7;}
-/* Gantt row drag handle for reordering */
 .gantt-drag-grip{width:16px;height:100%;display:flex;align-items:center;justify-content:center;cursor:grab;color:var(--bm);font-size:10px;flex-shrink:0;user-select:none;padding:0 1px;letter-spacing:-1px;}
 .gantt-drag-grip:hover{color:var(--tm);}
 .gantt-drag-grip:active{cursor:grabbing;color:var(--green);}
 .gantt-row.gantt-row-dragging{opacity:.5;background:var(--gl);}
 .gantt-row.gantt-row-drop-above{border-top:2px solid var(--green)!important;}
 .gantt-row.gantt-row-drop-below{border-bottom:2px solid var(--green)!important;}
-/* Gantt editable title */
 .gantt-title-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;cursor:pointer;padding:2px 0;}
 .gantt-title-text:hover{color:var(--green);}
 .gantt-title-inp{flex:1;min-width:0;border:none;border-bottom:1px solid var(--green);outline:none;font-size:11px;font-family:'DM Sans',sans-serif;color:var(--text);background:transparent;padding:1px 0;}
@@ -341,7 +343,6 @@ select.fi{cursor:pointer;}
 .ms-btn:hover{background:rgba(255,255,255,.15);}
 .ms-btn.pri{background:var(--green);border-color:var(--green);}
 
-/* Batch date modal */
 .batch-date-modal{position:fixed;inset:0;background:rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;z-index:110;opacity:0;pointer-events:none;transition:opacity .15s;}
 .batch-date-modal.open{opacity:1;pointer-events:all;}
 .batch-date-inner{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;width:100%;max-width:340px;box-shadow:var(--sh-l);}
@@ -445,7 +446,6 @@ select.fi{cursor:pointer;}
   </div>
 
   <div class="cw">
-    <!-- Canvas view -->
     <div id="cv">
       <div id="ci"><svg id="svgl"></svg></div>
       <div id="rband"></div>
@@ -458,7 +458,6 @@ select.fi{cursor:pointer;}
       <button class="zb" onclick="resetView()" style="font-size:10px">⊙</button>
     </div>
 
-    <!-- Gantt view -->
     <div id="gantt-view"></div>
 
     <div class="tl expanded" id="tl">
@@ -516,6 +515,7 @@ select.fi{cursor:pointer;}
   <kbd>Space</kbd> Toggle done · <kbd>Tab</kbd> Next node<br>
   <kbd>Ctrl+Z</kbd> Undo · <kbd>Ctrl+Y</kbd> Redo<br>
   <kbd>Ctrl+A</kbd> Select all · <kbd>Esc</kbd> Deselect<br>
+  <kbd>Ctrl+Click</kbd> edge · batch OR group<br>
   <kbd>G</kbd> Toggle Gantt · <kbd>?</kbd> This help
 </div>
 
@@ -536,7 +536,7 @@ select.fi{cursor:pointer;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-// © Galatea 2025 – v4 state machine rewrite + Gantt drag + batch + PNG
+// © Galatea 2025 – v4.1 bug fixes: edge batch OR + eliminated drift
 
 const LANG=(navigator.language||'en').startsWith('zh')?'zh':'en';
 const I18N={
@@ -556,6 +556,8 @@ const I18N={
     toast_copied:'已复制 {n} 个节点',
     toast_pasted:'已粘贴 {n} 个节点',
     hint_drag:'拖动端口连接 · ESC 取消',
+    toast_edge_sel:'已选中 {n} 条边 · Ctrl+点击更多 · 右键/再点击打开菜单',
+    toast_batch_or:'已将 {n} 条边加入 OR 组 {g}',
   },
   en:{
     setup_sub:'Your data stays in your own Supabase — no third-party servers involved.',
@@ -573,6 +575,8 @@ const I18N={
     toast_copied:'Copied {n} node(s)',
     toast_pasted:'Pasted {n} node(s)',
     hint_drag:'Drag from port to connect · ESC cancel',
+    toast_edge_sel:'Selected {n} edge(s) · Ctrl+click more · click again for menu',
+    toast_batch_or:'Added {n} edge(s) to OR group {g}',
   }
 };
 function t(key,vars){let s=(I18N[LANG]||I18N.en)[key]||(I18N.en[key]||key);if(vars)Object.entries(vars).forEach(([k,v])=>{s=s.replace('{'+k+'}',v);});return s;}
@@ -663,7 +667,7 @@ const HIST=[];let HIDX=-1;const MAX_HIST=60;
 function snapshot(){if(HIDX<HIST.length-1)HIST.splice(HIDX+1);HIST.push(JSON.stringify(getPayload()));if(HIST.length>MAX_HIST)HIST.shift();HIDX=HIST.length-1;updHistBtns();persistData();}
 function doUndo(){if(HIDX<=0)return;HIDX--;restoreSnap(HIST[HIDX]);updHistBtns();}
 function doRedo(){if(HIDX>=HIST.length-1)return;HIDX++;restoreSnap(HIST[HIDX]);updHistBtns();}
-function restoreSnap(snap){applyPayload(JSON.parse(snap));S.selNode=null;S.selEdgeIdx=null;closeDP();render();renderSidebar();buildTimeline();persistData();}
+function restoreSnap(snap){applyPayload(JSON.parse(snap));S.selNode=null;S.selEdgeIdx=null;S.selEdges.clear();closeDP();render();renderSidebar();buildTimeline();persistData();}
 function updHistBtns(){document.getElementById('undo-btn').disabled=HIDX<=0;document.getElementById('redo-btn').disabled=HIDX>=HIST.length-1;}
 
 // ══════════════════════════════════════════
@@ -675,6 +679,7 @@ const S={
   tags:['Company A','Company B','Company C','Company D','餐厅','交通','Planning'],
   tagColors:{'Company A':'#3464a8','Company B':'#2e7d5e','Company C':'#d97757','Company D':'#b83232','餐厅':'#c9892a','交通':'#3a8f6b','Planning':'#6a6660'},
   selNode:null,selEdgeIdx:null,
+  selEdges:new Set(), // ★ NEW: multi-edge selection for batch OR
   filters:{scene:'all',visualStates:[],tags:[]},
   xf:{x:50,y:50,scale:1},
   selDate:null,
@@ -686,7 +691,7 @@ const S={
   multiSel:new Set(),
   clipboard:null,
   viewMode:'canvas',
-  ganttSel:new Set(), // gantt-specific multi-select
+  ganttSel:new Set(),
 };
 
 // ── State Machine ──
@@ -704,6 +709,39 @@ function toggleEdgeOr(edgeIdx){
 }
 function setEdgeOrGroup(edgeIdx,groupId){const e=S.edges[edgeIdx];if(!e)return;e.orGroup=groupId;render();snapshot();}
 function toggleUnlockRule(node){node.unlockRule=node.unlockRule==='all'?'any':'all';render();snapshot();}
+
+// ★ NEW: Batch OR group operations for multi-selected edges
+function batchSetOrGroup(groupId){
+  S.selEdges.forEach(idx=>{
+    const e=S.edges[idx];
+    if(e) e.orGroup=groupId;
+  });
+  const cnt=S.selEdges.size;
+  S.selEdges.clear();closeEP();
+  render();snapshot();
+  showToast(t('toast_batch_or',{n:cnt,g:groupId}));
+}
+function batchNewOrGroup(){
+  const gid='og'+S.orGroupNext++;
+  batchSetOrGroup(gid);
+}
+function batchRemoveOrGroup(){
+  S.selEdges.forEach(idx=>{
+    const e=S.edges[idx];
+    if(e) e.orGroup=null;
+  });
+  const cnt=S.selEdges.size;
+  S.selEdges.clear();closeEP();
+  render();snapshot();
+  showToast('Removed OR from '+cnt+' edge(s)');
+}
+function batchDeleteEdges(){
+  // Delete in reverse order to preserve indices
+  const indices=[...S.selEdges].sort((a,b)=>b-a);
+  indices.forEach(idx=>S.edges.splice(idx,1));
+  S.selEdges.clear();S.selEdgeIdx=null;closeEP();
+  render();snapshot();
+}
 
 function computeVisualStates(){
   const states=new Map();
@@ -778,7 +816,7 @@ function sceneYOffset(scId){const nonAll=S.scenes.filter(s=>s.id!=='all');const 
 function nodeEffectiveY(n){return S.filters.scene==='all'?n.y+sceneYOffset(n.scene):n.y;}
 
 // ══════════════════════════════════════════
-// ██  SAMPLE DATA (enhanced cascade demo)  ██
+// ██  SAMPLE DATA  ██
 // ══════════════════════════════════════════
 function loadSample(){
   const now=new Date();now.setHours(12,0,0,0);
@@ -824,7 +862,6 @@ function loadSample(){
     {from:12,to:17,orGroup:null},{from:16,to:17,orGroup:null},
   ];
 
-  // ═══ Scene 2: 活动策划 (ENHANCED with cascade demo) ═══
   const EX=40,EY=40;
   const ep=(col,row)=>({x:EX+col*CW,y:EY+row*RH});
 
@@ -832,38 +869,26 @@ function loadSample(){
     {id:20,...ep(0,0),title:'确定人数',done:true,tags:['Planning'],dateS:r(-10),dateE:r(-8),scene:'event',note:'',unlockRule:'any'},
     {id:21,...ep(1,0),title:'订餐厅（开始找）',done:true,tags:['餐厅'],dateS:r(-7),dateE:r(-5),scene:'event',note:'',unlockRule:'any'},
     {id:22,...ep(1,3),title:'订车',done:false,tags:['交通'],dateS:r(-7),dateE:r(-4),scene:'event',note:'',unlockRule:'any'},
-    // 两个候选餐厅 (or) — mark 意大利餐厅 as done to trigger cascade
     {id:23,...ep(2,-.5),title:'候选：意大利餐厅',done:true,tags:['餐厅'],dateS:r(-4),dateE:r(-2),scene:'event',note:'已选中！',unlockRule:'any'},
     {id:24,...ep(2,1.5),title:'候选：中餐馆',done:false,tags:['餐厅'],dateS:r(-4),dateE:r(-2),scene:'event',note:'',unlockRule:'any'},
-    // ★ NEW: 后续节点 for 意大利餐厅 (active chain)
     {id:28,...ep(3,-.5),title:'🇮🇹 确定菜品（意式）',done:false,tags:['餐厅'],dateS:r(-1),dateE:r(0),scene:'event',note:'前菜+主菜+甜点',unlockRule:'any'},
     {id:29,...ep(4,-.5),title:'🇮🇹 预付订金',done:false,tags:['餐厅'],dateS:r(0),dateE:r(1),scene:'event',note:'',unlockRule:'any'},
-    // ★ NEW: 后续节点 for 中餐馆 (will be cascade-eliminated)
     {id:30,...ep(3,1.5),title:'🇨🇳 确定菜品（中式）',done:false,tags:['餐厅'],dateS:r(-1),dateE:r(0),scene:'event',note:'8菜1汤',unlockRule:'any'},
     {id:31,...ep(4,1.5),title:'🇨🇳 预付订金',done:false,tags:['餐厅'],dateS:r(0),dateE:r(1),scene:'event',note:'',unlockRule:'any'},
     {id:32,...ep(4.5,2.5),title:'🇨🇳 预定包间',done:false,tags:['餐厅'],dateS:r(0),dateE:r(1),scene:'event',note:'需要大包间',unlockRule:'any'},
-    // 确认餐厅 — requires either chain to complete
     {id:25,...ep(5.5,.5),title:'确认餐厅预定',done:false,tags:['餐厅'],dateS:r(1),dateE:r(2),scene:'event',note:'选了一个就定下来',unlockRule:'any'},
-    // 确认车
     {id:26,...ep(2,3),title:'确认车辆预定',done:false,tags:['交通'],dateS:r(-3),dateE:r(-1),scene:'event',note:'',unlockRule:'any'},
-    // 最终出发 (all)
     {id:27,...ep(6.5,1.5),title:'出发！🚗',done:false,tags:['Planning'],dateS:r(3),dateE:r(4),scene:'event',note:'餐厅和车都确认了才能出发',unlockRule:'all'},
   ];
 
   const eventEdges=[
     {from:20,to:21,orGroup:null},
     {from:20,to:22,orGroup:null},
-    // 订餐厅 → 两个候选 (or)
     {from:21,to:23,orGroup:'og_rest'},{from:21,to:24,orGroup:'og_rest'},
-    // 意大利餐厅 → 后续链
     {from:23,to:28,orGroup:null},{from:28,to:29,orGroup:null},
-    // 中餐馆 → 后续链
     {from:24,to:30,orGroup:null},{from:30,to:31,orGroup:null},{from:30,to:32,orGroup:null},
-    // 两条链的终点 → 确认餐厅
     {from:29,to:25,orGroup:null},{from:31,to:25,orGroup:null},
-    // 订车 → 确认车
     {from:22,to:26,orGroup:null},
-    // 确认餐厅 + 确认车 → 出发 (all)
     {from:25,to:27,orGroup:null},{from:26,to:27,orGroup:null},
   ];
 
@@ -893,7 +918,9 @@ function initCanvas(){
   const cv=document.getElementById('cv');
 
   cv.addEventListener('mousedown',e=>{
-    if(e.target.closest('.ep'))return;closeEP();
+    if(e.target.closest('.ep'))return;
+    // Don't closeEP when clicking SVG edges — their click handler manages edge selection
+    if(e.target.closest('#svgl')||e.target.namespaceURI==='http://www.w3.org/2000/svg'){}else{closeEP();}
     if(e.target.closest('.port')){handlePort(e.target.closest('.port'),e);return;}
     if(e.target.closest('.nt'))return;
     if(e.target.closest('.add-child-btn'))return;
@@ -906,7 +933,7 @@ function initCanvas(){
       if(e.ctrlKey||e.metaKey){e.preventDefault();if(S.multiSel.has(nd.id))S.multiSel.delete(nd.id);else S.multiSel.add(nd.id);updMsBar();renderNodes();return;}
       drag={on:1,node:nd,sx:e.clientX,sy:e.clientY,nx:nd.x,ny:nd.y,moved:false,el:nodeEl};e.preventDefault();return;
     }
-    if(!S.connSrc)pan={on:1,sx:e.clientX,sy:e.clientY,tx:S.xf.x,ty:S.xf.y};
+    if(!S.connSrc&&!e.target.closest('#svgl')&&e.target.namespaceURI!=='http://www.w3.org/2000/svg')pan={on:1,sx:e.clientX,sy:e.clientY,tx:S.xf.x,ty:S.xf.y};
   });
 
   window.addEventListener('mousemove',e=>{
@@ -928,7 +955,11 @@ function initCanvas(){
     if(e.target.closest('.ep')||e.target.closest('.port'))return;
     if(Date.now()-_lastTouch<350)return;
     if(S.connSrc){cancelConn();return;}
-    if(!e.target.closest('.node')&&!e.target.closest('.dp')){S.selNode=null;closeDP();renderNodes();}
+    // Don't clear selection when clicking SVG edges (they handle their own click)
+    if(e.target.closest('#svgl')||e.target.namespaceURI==='http://www.w3.org/2000/svg')return;
+    if(!e.target.closest('.node')&&!e.target.closest('.dp')){
+      S.selNode=null;S.selEdges.clear();closeDP();renderNodes();renderEdges();
+    }
   });
 
   // Keyboard
@@ -936,7 +967,7 @@ function initCanvas(){
     const inInput=['INPUT','TEXTAREA'].includes(document.activeElement?.tagName);
     if((e.ctrlKey||e.metaKey)&&e.key==='z'){e.preventDefault();doUndo();return;}
     if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='z'))){e.preventDefault();doRedo();return;}
-    if(e.key==='Escape'){cancelConn();closeDP();closeEP();clearSel();closeBatchDateModal();return;}
+    if(e.key==='Escape'){cancelConn();closeDP();closeEP();clearSel();S.selEdges.clear();renderEdges();closeBatchDateModal();return;}
     if(inInput)return;
     if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();visNodes().forEach(n=>S.multiSel.add(n.id));updMsBar();renderNodes();return;}
     if((e.ctrlKey||e.metaKey)&&e.key==='c'){e.preventDefault();copySelection();return;}
@@ -953,10 +984,11 @@ function initCanvas(){
       S.selNode=vn[nextIdx].id;openDP(vn[nextIdx]);renderNodes();return;
     }
     if(e.key==='Delete'&&S.selNode)delNode();
+    if(e.key==='Delete'&&S.selEdges.size>0){batchDeleteEdges();return;}
     if(e.key==='Delete'&&S.selEdgeIdx!=null){S.edges.splice(S.selEdgeIdx,1);S.selEdgeIdx=null;closeEP();render();snapshot();}
   });
 
-  document.addEventListener('mousedown',e=>{if(!e.target.closest('.ep'))closeEP();},{capture:true});
+  document.addEventListener('mousedown',e=>{if(!e.target.closest('.ep')&&!e.target.closest('#svgl')&&e.target.namespaceURI!=='http://www.w3.org/2000/svg')closeEP();},{capture:true});
 }
 
 // Copy/Paste
@@ -1001,8 +1033,45 @@ function finishConn(tid){
 }
 function cancelConn(){S.connSrc=null;S.gpos=null;document.getElementById('cv').classList.remove('cm');document.getElementById('ch').classList.remove('show');const g=document.getElementById('svgl').querySelector('.eg');if(g)g.remove();}
 
+// ★ MODIFIED: openEP now handles both single-edge and multi-edge selection
 function openEP(idx,cx,cy){
-  S.selEdgeIdx=idx;const ep=document.getElementById('ep');const e=S.edges[idx];if(!e){closeEP();return;}
+  const ep=document.getElementById('ep');
+
+  // ── Multi-edge mode ──
+  if(S.selEdges.size>0){
+    S.selEdgeIdx=null; // clear single selection in multi mode
+    const selArr=[...S.selEdges];
+    const selEdgeObjs=selArr.map(i=>S.edges[i]).filter(Boolean);
+    // Find common source nodes
+    const fromNodes=new Set(selEdgeObjs.map(e=>e.from));
+    // Find existing OR groups among selected
+    const existingGroups=new Map();
+    selEdgeObjs.forEach(e=>{if(e.orGroup)existingGroups.set(e.orGroup,true);});
+    // Find all OR groups from sibling edges (same from-node)
+    const allSiblingGroups=new Map();
+    fromNodes.forEach(fromId=>{
+      S.edges.forEach(e=>{if(e.from===fromId&&e.orGroup)allSiblingGroups.set(e.orGroup,true);});
+    });
+
+    let html=`<div class="ep-sel-badge">${S.selEdges.size} edges selected</div>`;
+    html+=`<button class="ep-btn" onclick="batchNewOrGroup()">⊕ New OR group (all selected)</button>`;
+    // Offer to join existing groups
+    allSiblingGroups.forEach((_,gid)=>{
+      html+=`<button class="ep-btn" onclick="batchSetOrGroup('${gid}')">⊕ Join OR group: ${gid}</button>`;
+    });
+    html+=`<button class="ep-btn" onclick="batchRemoveOrGroup()">→ Remove OR (make parallel)</button>`;
+    html+=`<div class="ep-sep"></div>`;
+    html+=`<button class="ep-btn ep-del" onclick="batchDeleteEdges()">✕ Delete ${S.selEdges.size} edges</button>`;
+    html+=`<button class="ep-btn" onclick="S.selEdges.clear();closeEP();renderEdges()">Cancel selection</button>`;
+
+    ep.innerHTML=html;
+    let x=cx+8,y=cy-10;if(x+220>window.innerWidth)x=cx-228;if(y+180>window.innerHeight)y=cy-190;
+    ep.style.left=x+'px';ep.style.top=y+'px';ep.classList.add('show');
+    return;
+  }
+
+  // ── Single-edge mode (original behavior) ──
+  S.selEdgeIdx=idx;const e=S.edges[idx];if(!e){closeEP();return;}
   const siblingEdges=S.edges.filter(e2=>e2.from===e.from);
   const existingGroups=new Map();
   siblingEdges.forEach(e2=>{if(e2.orGroup)existingGroups.set(e2.orGroup,true);});
@@ -1018,7 +1087,7 @@ function openEP(idx,cx,cy){
   ep.style.left=x+'px';ep.style.top=y+'px';ep.classList.add('show');renderEdges();
 }
 function setEdgeType(idx,type){if(type==='then')S.edges[idx].orGroup=null;closeEP();render();snapshot();}
-function closeEP(){const had=S.selEdgeIdx!=null;S.selEdgeIdx=null;document.getElementById('ep').classList.remove('show');if(had)renderEdges();}
+function closeEP(){const had=S.selEdgeIdx!=null||S.selEdges.size>0;S.selEdgeIdx=null;document.getElementById('ep').classList.remove('show');if(had)renderEdges();}
 function epDelete(){if(S.selEdgeIdx!=null){S.edges.splice(S.selEdgeIdx,1);snapshot();}S.selEdgeIdx=null;document.getElementById('ep').classList.remove('show');render();}
 
 // ══════════════════════════════════════════
@@ -1167,6 +1236,7 @@ function renderEdges(){
     const p0=portPos(e.from,null,e.to),p1=portPos(e.to,null,e.from);
     if(!p0||!p1)return;
     const sel=(i===S.selEdgeIdx);
+    const multiSel=S.selEdges.has(i); // ★ NEW: check multi-selection
     const vs0=states.get(e.from),vs1=states.get(e.to);
     const isDim=(vs0==='eliminated'||vs0==='cascade-elim'||vs1==='eliminated'||vs1==='cascade-elim');
     const isActive=(vs0==='done');
@@ -1177,12 +1247,14 @@ function renderEdges(){
     const hit=mkSVGEl('path');hit.setAttribute('d',cubicPath(p0,p1));hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width','18');hit.style.pointerEvents='stroke';
     const vis=mkSVGEl('path');vis.setAttribute('d',cubicPath(p0,p1));vis.setAttribute('class',visCls);
     if(sel){vis.style.stroke='#2e7d5e';vis.style.strokeWidth='3';}
+    // ★ NEW: highlight multi-selected edges
+    if(multiSel){vis.style.stroke='#2e7d5e';vis.style.strokeWidth='3.5';vis.style.strokeDasharray='none';vis.style.filter='drop-shadow(0 0 3px rgba(46,125,94,.4))';}
     g.appendChild(hit);g.appendChild(vis);
 
     const arrId='ar'+i;const defs=mkSVGEl('defs');const mk=mkSVGEl('marker');
     mk.setAttribute('id',arrId);mk.setAttribute('markerWidth','8');mk.setAttribute('markerHeight','8');mk.setAttribute('refX','7');mk.setAttribute('refY','4');mk.setAttribute('orient','auto');
     const poly=mkSVGEl('polygon');
-    const col=isDim?'#dedad4':isOr?'#d97757':(isActive?'#7caa95':'#ccc9c1');
+    const col=multiSel?'#2e7d5e':(isDim?'#dedad4':isOr?'#d97757':(isActive?'#7caa95':'#ccc9c1'));
     poly.setAttribute('points','0 0,7 4,0 8');poly.setAttribute('fill',col);mk.appendChild(poly);defs.appendChild(mk);
     const ap=mkSVGEl('path');ap.setAttribute('d',cubicPath(p0,p1));ap.setAttribute('fill','none');ap.setAttribute('stroke','none');ap.setAttribute('marker-end',`url(#${arrId})`);
     g.appendChild(defs);g.appendChild(ap);
@@ -1194,9 +1266,36 @@ function renderEdges(){
       fo.innerHTML=`<div xmlns="http://www.w3.org/1999/xhtml" style="font-size:8px;background:#d97757;color:#fff;padding:1px 4px;border-radius:6px;text-align:center;cursor:pointer;white-space:nowrap;width:fit-content;">OR</div>`;
       g.appendChild(fo);
     }
-    hit.addEventListener('click',ev=>{ev.stopPropagation();if(S.connSrc)return;openEP(i,ev.clientX,ev.clientY);});
-    hit.addEventListener('mouseenter',()=>{if(!sel){vis.style.stroke=isOr?'#c4623f':'#2e7d5e';vis.style.strokeWidth='3';}});
-    hit.addEventListener('mouseleave',()=>{if(!sel){vis.style.stroke='';vis.style.strokeWidth='';}});
+
+    // ★ MODIFIED: Ctrl+click adds to multi-selection; normal click opens single popup
+    hit.addEventListener('click',ev=>{
+      ev.stopPropagation();if(S.connSrc)return;
+      if(ev.ctrlKey||ev.metaKey){
+        // Toggle this edge in multi-selection
+        if(S.selEdges.has(i)){S.selEdges.delete(i);}
+        else{S.selEdges.add(i);}
+        S.selEdgeIdx=null;
+        renderEdges();
+        if(S.selEdges.size>0){
+          showToast(t('toast_edge_sel',{n:S.selEdges.size}));
+          // Open multi-edge popup at click position
+          openEP(i,ev.clientX,ev.clientY);
+        } else {
+          closeEP();
+        }
+        return;
+      }
+      // Normal click: if we have multi-selection, open multi popup
+      if(S.selEdges.size>0){
+        openEP(i,ev.clientX,ev.clientY);
+        return;
+      }
+      // Otherwise single-edge popup
+      S.selEdges.clear();
+      openEP(i,ev.clientX,ev.clientY);
+    });
+    hit.addEventListener('mouseenter',()=>{if(!sel&&!multiSel){vis.style.stroke=isOr?'#c4623f':'#2e7d5e';vis.style.strokeWidth='3';}});
+    hit.addEventListener('mouseleave',()=>{if(!sel&&!multiSel){vis.style.stroke='';vis.style.strokeWidth='';vis.style.filter='';vis.style.strokeDasharray='';}});
     svg.appendChild(g);
   });
 }
@@ -1378,7 +1477,7 @@ function refTagList(){document.getElementById('tag-ex').innerHTML=S.tags.map(t=>
 
 // ── MULTI-SELECT ──
 function updMsBar(){const bar=document.getElementById('ms-bar'),cnt=S.multiSel.size;if(cnt===0){bar.classList.remove('show');return;}bar.classList.add('show');document.getElementById('ms-count').textContent=cnt+' selected';}
-function clearSel(){S.multiSel.clear();S.ganttSel.clear();updMsBar();renderNodes();if(S.viewMode==='gantt')renderGantt();}
+function clearSel(){S.multiSel.clear();S.ganttSel.clear();S.selEdges.clear();updMsBar();renderNodes();renderEdges();if(S.viewMode==='gantt')renderGantt();}
 function markSelDone(){
   const ids=S.multiSel.size?S.multiSel:S.ganttSel;
   ids.forEach(id=>{const n=S.nodes.find(n=>n.id===id);if(n)n.done=true;});
@@ -1393,7 +1492,6 @@ function deleteSelected(){
   const ids=new Set(S.multiSel.size?S.multiSel:S.ganttSel);
   if(!ids.size)return;
   if(!confirm(`Delete ${ids.size} node(s)?`))return;
-  // Also delete descendants
   const allDel=new Set(ids);
   ids.forEach(id=>getAllDescendants(id).forEach(d=>allDel.add(d.id)));
   S.nodes=S.nodes.filter(n=>!allDel.has(n.id));
@@ -1433,12 +1531,11 @@ function applyBatchDate(){
 function toggleKbHint(){document.getElementById('kb-hint').classList.toggle('show');}
 
 // ══════════════════════════════════════════
-// ██  GANTT CHART VIEW (with drag, reorder, editable titles)  ██
+// ██  GANTT CHART VIEW  ██
 // ══════════════════════════════════════════
 let ganttDays=[];
 const GANTT_DAY_W=32;
 let ganttDrag={on:false,nodeId:null,mode:null,startX:0,origDateS:'',origDateE:'',scrollEl:null};
-// Manual gantt row order: array of node IDs. null = use date sort
 let ganttOrder=null;
 
 function toggleView(){
@@ -1453,23 +1550,13 @@ function toggleView(){
   }
 }
 
-function ganttSortByDate(){
-  ganttOrder=null;
-  renderGantt();
-  showToast('Sorted by date');
-}
+function ganttSortByDate(){ganttOrder=null;renderGantt();showToast('Sorted by date');}
 
 function getGanttNodes(){
   const nodes=visNodes().filter(n=>n.dateS||n.dateE);
   if(ganttOrder){
-    // Use manual order, but include any new nodes not in the order at the end
-    const ordered=[];
-    const idSet=new Set(nodes.map(n=>n.id));
-    const usedIds=new Set();
-    ganttOrder.forEach(id=>{
-      if(idSet.has(id)){const n=nodes.find(nn=>nn.id===id);if(n){ordered.push(n);usedIds.add(id);}}
-    });
-    // Append any nodes not in manual order
+    const ordered=[];const idSet=new Set(nodes.map(n=>n.id));const usedIds=new Set();
+    ganttOrder.forEach(id=>{if(idSet.has(id)){const n=nodes.find(nn=>nn.id===id);if(n){ordered.push(n);usedIds.add(id);}}});
     nodes.filter(n=>!usedIds.has(n.id)).sort((a,b)=>(a.dateS||a.dateE||'').localeCompare(b.dateS||b.dateE||'')).forEach(n=>ordered.push(n));
     return ordered;
   }
@@ -1483,7 +1570,6 @@ function renderGantt(){
 
   let minDate=null,maxDate=null;
   nodes.forEach(n=>{const s=n.dateS||n.dateE,e=n.dateE||n.dateS;if(!minDate||s<minDate)minDate=s;if(!maxDate||e>maxDate)maxDate=e;});
-
   const md=new Date(minDate+'T12:00:00');md.setDate(md.getDate()-3);minDate=localYMD(md);
   const xd=new Date(maxDate+'T12:00:00');xd.setDate(xd.getDate()+7);maxDate=localYMD(xd);
 
@@ -1495,7 +1581,6 @@ function renderGantt(){
   const states=computeVisualStates();
   const DAY_W=GANTT_DAY_W;
 
-  // Gantt header bar with sort button
   let headerHtml=`<div class="gantt-header">
     <span style="font-size:11px;color:var(--td)">Gantt</span>
     <button class="btn" onclick="ganttSortByDate()" style="padding:3px 8px;font-size:10px" title="Sort rows by start date">⇅ Sort by date</button>
@@ -1504,7 +1589,6 @@ function renderGantt(){
 
   let html=headerHtml+`<div class="gantt-scroll" id="gantt-scroll"><div class="gantt-grid" id="gantt-grid" style="width:${200+ganttDays.length*DAY_W}px">`;
 
-  // Day header
   const dw=['Su','Mo','Tu','We','Th','Fr','Sa'],moN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   html+=`<div class="gantt-day-header"><div style="width:200px;min-width:200px;position:sticky;left:0;z-index:4;background:var(--surface);border-right:1px solid var(--border)"></div>`;
   ganttDays.forEach(ds=>{
@@ -1553,25 +1637,16 @@ function renderGantt(){
   html+=`</div></div>`;
   gv.innerHTML=html;
 
-  // Scroll to today
   if(todayIdx>=0){const scroll=gv.querySelector('.gantt-scroll');if(scroll)scroll.scrollLeft=Math.max(0,todayIdx*DAY_W-scroll.clientWidth/2+100);}
 
-  // Attach all gantt interactive handlers
-  initGanttDrag();
-  initGanttRowReorder();
-  initGanttTitleEdit();
-  initGanttCheckboxes();
-  initGanttDoneChecks();
+  initGanttDrag();initGanttRowReorder();initGanttTitleEdit();initGanttCheckboxes();initGanttDoneChecks();
 }
 
 function initGanttCheckboxes(){
-  // Ctrl+click on gantt row to select/deselect
   const gv=document.getElementById('gantt-view');
   gv.querySelectorAll('.gantt-row').forEach(row=>{
     row.addEventListener('click',e=>{
-      // Only handle Ctrl+click for multi-select
       if(!e.ctrlKey&&!e.metaKey)return;
-      // Don't interfere with title, done-mini, grip, bar interactions
       if(e.target.closest('.gantt-title-text')||e.target.closest('.gantt-title-inp')||e.target.closest('.gantt-bar')||e.target.closest('.gantt-handle'))return;
       e.preventDefault();
       const id=+row.dataset.ganttNode;
@@ -1595,32 +1670,21 @@ function initGanttDoneChecks(){
   });
 }
 
-// ── Gantt title inline edit + click to open detail panel ──
 function initGanttTitleEdit(){
   const gv=document.getElementById('gantt-view');
   gv.querySelectorAll('.gantt-title-text').forEach(el=>{
     const nodeId=+el.dataset.node;
-    // Single click = open detail panel
     el.addEventListener('click',e=>{
-      e.stopPropagation();
-      S.selNode=nodeId;
-      const n=S.nodes.find(n=>n.id===nodeId);
-      if(n)openDP(n);
+      e.stopPropagation();S.selNode=nodeId;
+      const n=S.nodes.find(n=>n.id===nodeId);if(n)openDP(n);
     });
-    // Double click = inline edit
     el.addEventListener('dblclick',e=>{
       e.stopPropagation();
-      const n=S.nodes.find(n=>n.id===nodeId);
-      if(!n)return;
+      const n=S.nodes.find(n=>n.id===nodeId);if(!n)return;
       const inp=document.createElement('input');
-      inp.className='gantt-title-inp';
-      inp.value=n.title;
-      el.replaceWith(inp);
-      inp.focus();inp.select();
-      const finish=()=>{
-        n.title=inp.value.trim()||n.title;
-        renderGantt();render();snapshot();
-      };
+      inp.className='gantt-title-inp';inp.value=n.title;
+      el.replaceWith(inp);inp.focus();inp.select();
+      const finish=()=>{n.title=inp.value.trim()||n.title;renderGantt();render();snapshot();};
       inp.addEventListener('blur',finish);
       inp.addEventListener('keydown',ev=>{
         if(ev.key==='Enter')inp.blur();
@@ -1631,36 +1695,21 @@ function initGanttTitleEdit(){
   });
 }
 
-// ── Gantt row reorder by dragging grip ──
 function initGanttRowReorder(){
-  const grid=document.getElementById('gantt-grid');
-  if(!grid)return;
-
+  const grid=document.getElementById('gantt-grid');if(!grid)return;
   grid.querySelectorAll('.gantt-drag-grip').forEach(grip=>{
     grip.addEventListener('mousedown',e=>{
       e.preventDefault();e.stopPropagation();
-      const row=grip.closest('.gantt-row');
-      if(!row)return;
+      const row=grip.closest('.gantt-row');if(!row)return;
       const nodeId=+grip.dataset.node;
-
-      // Determine which IDs to drag: if this node is in selection AND selection > 1, drag all selected
       const selIds=(S.ganttSel.has(nodeId)||S.multiSel.has(nodeId))&&(S.ganttSel.size+S.multiSel.size>1)
-        ?new Set([...S.ganttSel,...S.multiSel])
-        :new Set([nodeId]);
-
-      // Build current order from DOM
+        ?new Set([...S.ganttSel,...S.multiSel]):new Set([nodeId]);
       const allRows=[...grid.querySelectorAll('.gantt-row')];
       const currentOrder=allRows.map(r=>+r.dataset.ganttNode);
-
-      // Mark dragging rows
       allRows.forEach(r=>{if(selIds.has(+r.dataset.ganttNode))r.classList.add('gantt-row-dragging');});
-
       let lastDropIdx=-1;
-
       const onMove=ev=>{
-        // Find which row we're hovering over
-        const y=ev.clientY;
-        let dropIdx=-1;
+        const y=ev.clientY;let dropIdx=-1;
         allRows.forEach((r,i)=>{
           r.classList.remove('gantt-row-drop-above','gantt-row-drop-below');
           if(selIds.has(+r.dataset.ganttNode))return;
@@ -1668,112 +1717,59 @@ function initGanttRowReorder(){
           if(y>=rect.top&&y<rect.top+rect.height/2){dropIdx=i;r.classList.add('gantt-row-drop-above');}
           else if(y>=rect.top+rect.height/2&&y<=rect.bottom){dropIdx=i+1;r.classList.add('gantt-row-drop-below');}
         });
-        // Clear stale indicators — keep only one
         let found=false;
         allRows.forEach(r=>{
           if(r.classList.contains('gantt-row-drop-above')||r.classList.contains('gantt-row-drop-below')){
-            if(found){r.classList.remove('gantt-row-drop-above','gantt-row-drop-below');}
-            found=true;
+            if(found){r.classList.remove('gantt-row-drop-above','gantt-row-drop-below');}found=true;
           }
         });
         lastDropIdx=dropIdx;
       };
-
       const onUp=()=>{
-        window.removeEventListener('mousemove',onMove);
-        window.removeEventListener('mouseup',onUp);
+        window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);
         allRows.forEach(r=>{r.classList.remove('gantt-row-dragging','gantt-row-drop-above','gantt-row-drop-below');});
-
         if(lastDropIdx<0)return;
-
-        // Reorder: extract dragged IDs, insert at drop position
-        const draggedIds=[...selIds];
-        const remaining=currentOrder.filter(id=>!selIds.has(id));
-        // Adjust drop index for removed items
-        let insertIdx=0;
-        let count=0;
-        for(let i=0;i<currentOrder.length;i++){
-          if(!selIds.has(currentOrder[i]))count++;
-          if(count>=lastDropIdx){insertIdx=count;break;}
-        }
+        const draggedIds=[...selIds];const remaining=currentOrder.filter(id=>!selIds.has(id));
+        let insertIdx=0,count=0;
+        for(let i=0;i<currentOrder.length;i++){if(!selIds.has(currentOrder[i]))count++;if(count>=lastDropIdx){insertIdx=count;break;}}
         if(lastDropIdx>remaining.length)insertIdx=remaining.length;
-        remaining.splice(insertIdx,0,...draggedIds);
-        ganttOrder=remaining;
-        renderGantt();
-        snapshot();
+        remaining.splice(insertIdx,0,...draggedIds);ganttOrder=remaining;renderGantt();snapshot();
       };
-
-      window.addEventListener('mousemove',onMove);
-      window.addEventListener('mouseup',onUp);
+      window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
     });
   });
 }
 
 function initGanttDrag(){
-  const scrollEl=document.getElementById('gantt-scroll');
-  if(!scrollEl)return;
-
+  const scrollEl=document.getElementById('gantt-scroll');if(!scrollEl)return;
   scrollEl.addEventListener('mousedown',e=>{
-    // Skip if clicking on grip, checkbox, done-mini, or title
     if(e.target.closest('.gantt-drag-grip')||e.target.closest('.done-mini')||e.target.closest('.gantt-title-text')||e.target.closest('.gantt-title-inp'))return;
-
-    const handle=e.target.closest('.gantt-handle');
-    const bar=e.target.closest('.gantt-bar');
+    const handle=e.target.closest('.gantt-handle');const bar=e.target.closest('.gantt-bar');
     if(!handle&&!bar)return;
-
-    const nodeId=+(handle||bar).dataset.node;
-    const node=S.nodes.find(n=>n.id===nodeId);
-    if(!node)return;
-
+    const nodeId=+(handle||bar).dataset.node;const node=S.nodes.find(n=>n.id===nodeId);if(!node)return;
     e.preventDefault();
     const mode=handle?handle.dataset.mode:'move';
     ganttDrag={on:true,nodeId,mode,startX:e.clientX,origDateS:node.dateS||node.dateE||'',origDateE:node.dateE||node.dateS||'',scrollEl,origDates:null};
-
     const onMove=ev=>{
       if(!ganttDrag.on)return;
-      const dx=ev.clientX-ganttDrag.startX;
-      const dayShift=Math.round(dx/GANTT_DAY_W);
-
+      const dx=ev.clientX-ganttDrag.startX;const dayShift=Math.round(dx/GANTT_DAY_W);
       const n=S.nodes.find(n=>n.id===ganttDrag.nodeId);if(!n)return;
-
       if(ganttDrag.mode==='move'){
-        // Move both dates. If multi-selected, move all selected (preserving relative positions)
         const ids=(S.ganttSel.has(nodeId)||S.multiSel.has(nodeId))&&(S.ganttSel.size+S.multiSel.size>0)
-          ?[...new Set([...S.ganttSel,...S.multiSel])]
-          :[nodeId];
-        if(!ganttDrag.origDates){
-          ganttDrag.origDates={};
-          ids.forEach(id=>{const nn=S.nodes.find(nn=>nn.id===id);if(nn)ganttDrag.origDates[id]={s:nn.dateS,e:nn.dateE};});
-        }
-        ids.forEach(id=>{
-          const nn=S.nodes.find(nn=>nn.id===id);
-          const orig=ganttDrag.origDates[id];
-          if(!nn||!orig)return;
-          if(orig.s)nn.dateS=addDaysYMD(orig.s,dayShift);
-          if(orig.e)nn.dateE=addDaysYMD(orig.e,dayShift);
-        });
+          ?[...new Set([...S.ganttSel,...S.multiSel])]:[nodeId];
+        if(!ganttDrag.origDates){ganttDrag.origDates={};ids.forEach(id=>{const nn=S.nodes.find(nn=>nn.id===id);if(nn)ganttDrag.origDates[id]={s:nn.dateS,e:nn.dateE};});}
+        ids.forEach(id=>{const nn=S.nodes.find(nn=>nn.id===id);const orig=ganttDrag.origDates[id];if(!nn||!orig)return;if(orig.s)nn.dateS=addDaysYMD(orig.s,dayShift);if(orig.e)nn.dateE=addDaysYMD(orig.e,dayShift);});
       } else if(ganttDrag.mode==='resize-l'){
-        const newS=addDaysYMD(ganttDrag.origDateS,dayShift);
-        if(newS<=n.dateE)n.dateS=newS; else n.dateS=n.dateE;
+        const newS=addDaysYMD(ganttDrag.origDateS,dayShift);if(newS<=n.dateE)n.dateS=newS;else n.dateS=n.dateE;
       } else if(ganttDrag.mode==='resize-r'){
-        const newE=addDaysYMD(ganttDrag.origDateE,dayShift);
-        if(newE>=n.dateS)n.dateE=newE; else n.dateE=n.dateS;
+        const newE=addDaysYMD(ganttDrag.origDateE,dayShift);if(newE>=n.dateS)n.dateE=newE;else n.dateE=n.dateS;
       }
       renderGantt();
     };
-
-    const onUp=()=>{
-      if(ganttDrag.on){ganttDrag.on=false;buildTimeline();snapshot();}
-      window.removeEventListener('mousemove',onMove);
-      window.removeEventListener('mouseup',onUp);
-    };
-    window.addEventListener('mousemove',onMove);
-    window.addEventListener('mouseup',onUp);
+    const onUp=()=>{if(ganttDrag.on){ganttDrag.on=false;buildTimeline();snapshot();}window.removeEventListener('mousemove',onMove);window.removeEventListener('mouseup',onUp);};
+    window.addEventListener('mousemove',onMove);window.addEventListener('mouseup',onUp);
   });
 }
-
-function ganttToggleDone(id){const n=S.nodes.find(n=>n.id===id);if(n)toggleDone(n);}
-function ganttSelect(id){S.selNode=id;const n=S.nodes.find(n=>n.id===id);if(n)openDP(n);}
 
 // ══════════════════════════════════════════
 // ██  PNG EXPORT  ██
@@ -1783,108 +1779,34 @@ async function exportPNG(){
   overlay.className='export-overlay';
   overlay.innerHTML='<div class="export-overlay-inner"><div class="spinner"></div><div style="font-size:13px;color:var(--tm)">Generating PNG...</div></div>';
   document.body.appendChild(overlay);
-
   try{
     if(typeof html2canvas==='undefined'){overlay.remove();showToast('html2canvas not loaded');return;}
-
     let canvas;
     if(S.viewMode==='canvas'){
-      const ci=document.getElementById('ci');
-      const cvEl=document.getElementById('cv');
-      const vNodes=visNodes();
+      const ci=document.getElementById('ci');const cvEl=document.getElementById('cv');const vNodes=visNodes();
       if(!vNodes.length){overlay.remove();showToast('No nodes to export');return;}
-
-      // Calculate bounding box of all visible nodes
       let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
-      vNodes.forEach(n=>{
-        const yOff=S.filters.scene==='all'?sceneYOffset(n.scene):0;
-        minX=Math.min(minX,n.x);minY=Math.min(minY,n.y+yOff);
-        maxX=Math.max(maxX,n.x+nodeWidth(n)+20);maxY=Math.max(maxY,n.y+yOff+120);
-      });
-      const pad=80;
-      minX-=pad;minY-=pad;maxX+=pad;maxY+=pad;
+      vNodes.forEach(n=>{const yOff=S.filters.scene==='all'?sceneYOffset(n.scene):0;minX=Math.min(minX,n.x);minY=Math.min(minY,n.y+yOff);maxX=Math.max(maxX,n.x+nodeWidth(n)+20);maxY=Math.max(maxY,n.y+yOff+120);});
+      const pad=80;minX-=pad;minY-=pad;maxX+=pad;maxY+=pad;
       const w=Math.ceil(maxX-minX),h=Math.ceil(maxY-minY);
-
-      // Save original state
-      const origTransform=ci.style.transform;
-      const origCvOverflow=cvEl.style.overflow;
-      const origCvWidth=cvEl.style.width;
-      const origCvHeight=cvEl.style.height;
-      const origCvPos=cvEl.style.position;
-
-      // Temporarily adjust for capture: reset transform, expand container
-      ci.style.transform=`translate(${-minX}px,${-minY}px) scale(1)`;
-      cvEl.style.overflow='visible';
-      cvEl.style.width=w+'px';
-      cvEl.style.height=h+'px';
-      cvEl.style.position='relative';
-
-      // Wait a frame for layout
+      const origTransform=ci.style.transform;const origCvOverflow=cvEl.style.overflow;const origCvWidth=cvEl.style.width;const origCvHeight=cvEl.style.height;const origCvPos=cvEl.style.position;
+      ci.style.transform=`translate(${-minX}px,${-minY}px) scale(1)`;cvEl.style.overflow='visible';cvEl.style.width=w+'px';cvEl.style.height=h+'px';cvEl.style.position='relative';
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-
-      canvas=await html2canvas(cvEl,{
-        backgroundColor:'#f8f7f5',
-        width:w,
-        height:h,
-        scale:2,
-        useCORS:true,
-        logging:false,
-        windowWidth:w+100,
-        windowHeight:h+100,
-      });
-
-      // Restore
-      ci.style.transform=origTransform;
-      cvEl.style.overflow=origCvOverflow||'';
-      cvEl.style.width=origCvWidth||'';
-      cvEl.style.height=origCvHeight||'';
-      cvEl.style.position=origCvPos||'';
+      canvas=await html2canvas(cvEl,{backgroundColor:'#f8f7f5',width:w,height:h,scale:2,useCORS:true,logging:false,windowWidth:w+100,windowHeight:h+100});
+      ci.style.transform=origTransform;cvEl.style.overflow=origCvOverflow||'';cvEl.style.width=origCvWidth||'';cvEl.style.height=origCvHeight||'';cvEl.style.position=origCvPos||'';
     } else {
-      // Gantt mode — capture the full grid
-      const scrollEl=document.querySelector('.gantt-scroll');
-      const gridEl=scrollEl?.querySelector('.gantt-grid');
+      const scrollEl=document.querySelector('.gantt-scroll');const gridEl=scrollEl?.querySelector('.gantt-grid');
       if(!gridEl){overlay.remove();return;}
-
-      // Save and temporarily override scroll container to show everything
-      const origOverflow=scrollEl.style.overflow;
-      const origHeight=scrollEl.style.height;
-      const origMaxH=scrollEl.style.maxHeight;
-      scrollEl.style.overflow='visible';
-      scrollEl.style.height='auto';
-      scrollEl.style.maxHeight='none';
-
+      const origOverflow=scrollEl.style.overflow;const origHeight=scrollEl.style.height;const origMaxH=scrollEl.style.maxHeight;
+      scrollEl.style.overflow='visible';scrollEl.style.height='auto';scrollEl.style.maxHeight='none';
       await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-
-      const fullW=gridEl.scrollWidth||gridEl.offsetWidth;
-      const fullH=gridEl.scrollHeight||gridEl.offsetHeight;
-
-      canvas=await html2canvas(gridEl,{
-        backgroundColor:'#f8f7f5',
-        scale:2,
-        useCORS:true,
-        logging:false,
-        width:fullW,
-        height:fullH,
-        windowWidth:fullW+100,
-        windowHeight:fullH+100,
-      });
-
-      scrollEl.style.overflow=origOverflow||'';
-      scrollEl.style.height=origHeight||'';
-      scrollEl.style.maxHeight=origMaxH||'';
+      const fullW=gridEl.scrollWidth||gridEl.offsetWidth;const fullH=gridEl.scrollHeight||gridEl.offsetHeight;
+      canvas=await html2canvas(gridEl,{backgroundColor:'#f8f7f5',scale:2,useCORS:true,logging:false,width:fullW,height:fullH,windowWidth:fullW+100,windowHeight:fullH+100});
+      scrollEl.style.overflow=origOverflow||'';scrollEl.style.height=origHeight||'';scrollEl.style.maxHeight=origMaxH||'';
     }
-
-    const link=document.createElement('a');
-    link.download=`zuji-${S.viewMode}-${todayYMD()}.png`;
-    link.href=canvas.toDataURL('image/png');
-    link.click();
-    showToast('PNG exported!');
-  }catch(err){
-    console.error('PNG export error:',err);
-    showToast('Export failed: '+err.message);
-  }finally{
-    overlay.remove();
-  }
+    const link=document.createElement('a');link.download=`zuji-${S.viewMode}-${todayYMD()}.png`;link.href=canvas.toDataURL('image/png');link.click();showToast('PNG exported!');
+  }catch(err){console.error('PNG export error:',err);showToast('Export failed: '+err.message);}
+  finally{overlay.remove();}
 }
 </script>
 </body>
