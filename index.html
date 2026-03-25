@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- © Galatea 2025 – bkuo4862aire@gmail.com -->
-<!-- v4.1 – Bug fixes: edge batch OR (Ctrl+click) + eliminated node drift -->
+<!-- v4.2 – Fix: eliminated/cascade node position drift (removed position:relative override) -->
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -127,11 +127,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .node.n-locked{box-shadow:inset 3.5px 0 0 var(--blue),var(--sh-s);background:var(--surface);}
 .node.n-locked:hover{box-shadow:inset 3.5px 0 0 var(--blue),var(--sh-m);}
 .node.n-locked .ns-stripe{background:var(--blue)!important;}
-/* ★ BUG 2 FIX: 1px border (consistent with base .node), no overflow:hidden (clips ports).
-   ::after constrained to left:0 width:100% so strikethrough stays within node bounds. */
+/* ★ v4.2 FIX: Removed position:relative — .node is already position:absolute,
+   which is a positioned ancestor for ::after. Adding position:relative was
+   overriding absolute positioning and causing eliminated nodes to drift. */
 .node.n-eliminated{
   border:1px dashed var(--red);background:var(--surface);
-  position:relative;
 }
 .node.n-eliminated .ns-stripe{background:var(--red)!important;}
 .node.n-eliminated::after{
@@ -142,7 +142,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);hei
 .node.n-eliminated .nt{color:var(--td);}
 .node.n-cascade-elim{
   border:1px dashed var(--bm);background:var(--surface);
-  position:relative;
 }
 .node.n-cascade-elim .ns-stripe{background:var(--bm)!important;}
 .node.n-cascade-elim::after{
@@ -536,7 +535,7 @@ select.fi{cursor:pointer;}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
-// © Galatea 2025 – v4.1 bug fixes: edge batch OR + eliminated drift
+// © Galatea 2025 – v4.2 fix: eliminated node drift
 
 const LANG=(navigator.language||'en').startsWith('zh')?'zh':'en';
 const I18N={
@@ -679,7 +678,7 @@ const S={
   tags:['Company A','Company B','Company C','Company D','餐厅','交通','Planning'],
   tagColors:{'Company A':'#3464a8','Company B':'#2e7d5e','Company C':'#d97757','Company D':'#b83232','餐厅':'#c9892a','交通':'#3a8f6b','Planning':'#6a6660'},
   selNode:null,selEdgeIdx:null,
-  selEdges:new Set(), // ★ NEW: multi-edge selection for batch OR
+  selEdges:new Set(),
   filters:{scene:'all',visualStates:[],tags:[]},
   xf:{x:50,y:50,scale:1},
   selDate:null,
@@ -710,7 +709,6 @@ function toggleEdgeOr(edgeIdx){
 function setEdgeOrGroup(edgeIdx,groupId){const e=S.edges[edgeIdx];if(!e)return;e.orGroup=groupId;render();snapshot();}
 function toggleUnlockRule(node){node.unlockRule=node.unlockRule==='all'?'any':'all';render();snapshot();}
 
-// ★ NEW: Batch OR group operations for multi-selected edges
 function batchSetOrGroup(groupId){
   S.selEdges.forEach(idx=>{
     const e=S.edges[idx];
@@ -736,7 +734,6 @@ function batchRemoveOrGroup(){
   showToast('Removed OR from '+cnt+' edge(s)');
 }
 function batchDeleteEdges(){
-  // Delete in reverse order to preserve indices
   const indices=[...S.selEdges].sort((a,b)=>b-a);
   indices.forEach(idx=>S.edges.splice(idx,1));
   S.selEdges.clear();S.selEdgeIdx=null;closeEP();
@@ -919,7 +916,6 @@ function initCanvas(){
 
   cv.addEventListener('mousedown',e=>{
     if(e.target.closest('.ep'))return;
-    // Don't closeEP when clicking SVG edges — their click handler manages edge selection
     if(e.target.closest('#svgl')||e.target.namespaceURI==='http://www.w3.org/2000/svg'){}else{closeEP();}
     if(e.target.closest('.port')){handlePort(e.target.closest('.port'),e);return;}
     if(e.target.closest('.nt'))return;
@@ -955,7 +951,6 @@ function initCanvas(){
     if(e.target.closest('.ep')||e.target.closest('.port'))return;
     if(Date.now()-_lastTouch<350)return;
     if(S.connSrc){cancelConn();return;}
-    // Don't clear selection when clicking SVG edges (they handle their own click)
     if(e.target.closest('#svgl')||e.target.namespaceURI==='http://www.w3.org/2000/svg')return;
     if(!e.target.closest('.node')&&!e.target.closest('.dp')){
       S.selNode=null;S.selEdges.clear();closeDP();renderNodes();renderEdges();
@@ -1033,21 +1028,16 @@ function finishConn(tid){
 }
 function cancelConn(){S.connSrc=null;S.gpos=null;document.getElementById('cv').classList.remove('cm');document.getElementById('ch').classList.remove('show');const g=document.getElementById('svgl').querySelector('.eg');if(g)g.remove();}
 
-// ★ MODIFIED: openEP now handles both single-edge and multi-edge selection
 function openEP(idx,cx,cy){
   const ep=document.getElementById('ep');
 
-  // ── Multi-edge mode ──
   if(S.selEdges.size>0){
-    S.selEdgeIdx=null; // clear single selection in multi mode
+    S.selEdgeIdx=null;
     const selArr=[...S.selEdges];
     const selEdgeObjs=selArr.map(i=>S.edges[i]).filter(Boolean);
-    // Find common source nodes
     const fromNodes=new Set(selEdgeObjs.map(e=>e.from));
-    // Find existing OR groups among selected
     const existingGroups=new Map();
     selEdgeObjs.forEach(e=>{if(e.orGroup)existingGroups.set(e.orGroup,true);});
-    // Find all OR groups from sibling edges (same from-node)
     const allSiblingGroups=new Map();
     fromNodes.forEach(fromId=>{
       S.edges.forEach(e=>{if(e.from===fromId&&e.orGroup)allSiblingGroups.set(e.orGroup,true);});
@@ -1055,7 +1045,6 @@ function openEP(idx,cx,cy){
 
     let html=`<div class="ep-sel-badge">${S.selEdges.size} edges selected</div>`;
     html+=`<button class="ep-btn" onclick="batchNewOrGroup()">⊕ New OR group (all selected)</button>`;
-    // Offer to join existing groups
     allSiblingGroups.forEach((_,gid)=>{
       html+=`<button class="ep-btn" onclick="batchSetOrGroup('${gid}')">⊕ Join OR group: ${gid}</button>`;
     });
@@ -1070,7 +1059,6 @@ function openEP(idx,cx,cy){
     return;
   }
 
-  // ── Single-edge mode (original behavior) ──
   S.selEdgeIdx=idx;const e=S.edges[idx];if(!e){closeEP();return;}
   const siblingEdges=S.edges.filter(e2=>e2.from===e.from);
   const existingGroups=new Map();
@@ -1236,7 +1224,7 @@ function renderEdges(){
     const p0=portPos(e.from,null,e.to),p1=portPos(e.to,null,e.from);
     if(!p0||!p1)return;
     const sel=(i===S.selEdgeIdx);
-    const multiSel=S.selEdges.has(i); // ★ NEW: check multi-selection
+    const multiSel=S.selEdges.has(i);
     const vs0=states.get(e.from),vs1=states.get(e.to);
     const isDim=(vs0==='eliminated'||vs0==='cascade-elim'||vs1==='eliminated'||vs1==='cascade-elim');
     const isActive=(vs0==='done');
@@ -1247,7 +1235,6 @@ function renderEdges(){
     const hit=mkSVGEl('path');hit.setAttribute('d',cubicPath(p0,p1));hit.setAttribute('fill','none');hit.setAttribute('stroke','transparent');hit.setAttribute('stroke-width','18');hit.style.pointerEvents='stroke';
     const vis=mkSVGEl('path');vis.setAttribute('d',cubicPath(p0,p1));vis.setAttribute('class',visCls);
     if(sel){vis.style.stroke='#2e7d5e';vis.style.strokeWidth='3';}
-    // ★ NEW: highlight multi-selected edges
     if(multiSel){vis.style.stroke='#2e7d5e';vis.style.strokeWidth='3.5';vis.style.strokeDasharray='none';vis.style.filter='drop-shadow(0 0 3px rgba(46,125,94,.4))';}
     g.appendChild(hit);g.appendChild(vis);
 
@@ -1267,30 +1254,25 @@ function renderEdges(){
       g.appendChild(fo);
     }
 
-    // ★ MODIFIED: Ctrl+click adds to multi-selection; normal click opens single popup
     hit.addEventListener('click',ev=>{
       ev.stopPropagation();if(S.connSrc)return;
       if(ev.ctrlKey||ev.metaKey){
-        // Toggle this edge in multi-selection
         if(S.selEdges.has(i)){S.selEdges.delete(i);}
         else{S.selEdges.add(i);}
         S.selEdgeIdx=null;
         renderEdges();
         if(S.selEdges.size>0){
           showToast(t('toast_edge_sel',{n:S.selEdges.size}));
-          // Open multi-edge popup at click position
           openEP(i,ev.clientX,ev.clientY);
         } else {
           closeEP();
         }
         return;
       }
-      // Normal click: if we have multi-selection, open multi popup
       if(S.selEdges.size>0){
         openEP(i,ev.clientX,ev.clientY);
         return;
       }
-      // Otherwise single-edge popup
       S.selEdges.clear();
       openEP(i,ev.clientX,ev.clientY);
     });
